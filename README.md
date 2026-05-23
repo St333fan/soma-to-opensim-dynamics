@@ -20,8 +20,10 @@ analysis so stiffness can be estimated from motion and force outputs.
 - An OpenSim model with matching ULB marker names, for example `Adjusted_ULBmodel.osim`
 - A SOMA-X/BONES-SEED BVH file
 
-The adjusted ULB model is not committed by default. Put it somewhere local and pass
-its path with `--model`, or place it in `models/Adjusted_ULBmodel.osim`.
+The adjusted ULB model is not committed by default. It comes from the SimTK
+project [Analysis of arm swing during human walking](https://simtk.org/projects/arm_swing).
+Put `Adjusted_ULBmodel.osim` somewhere local and pass its path with `--model`,
+or place it in `models/Adjusted_ULBmodel.osim`.
 
 ## Install
 
