@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "soma-to-opensim-dynamics"
+version = "0.1.0"
+description = "Convert SOMA-X/BONES-SEED BVH motion data into OpenSim TRC/MOT workflows for dynamics analysis."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
+keywords = ["opensim", "soma", "bvh", "inverse-kinematics", "dynamics", "biomechanics"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering",
+]
+
+[project.optional-dependencies]
+metadata = ["pandas>=2", "pyarrow>=14"]
+notebook = ["jupyterlab>=4"]
+
+[project.scripts]
+seed-to-opensim = "safe_opensim.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
