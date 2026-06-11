@@ -161,6 +161,7 @@ C:\Users\<you>\miniconda3\python.exe -m safe_opensim static-optimization `
   --filter-coordinates `
   --coordinate-filter-cutoff 4 `
   --write-states-for-muscle-analysis `
+  --run-muscle-analysis `
   --opensim-cmd "C:\OpenSim 4.5\bin\opensim-cmd.exe" `
   --run
 ```
@@ -173,7 +174,8 @@ Static Optimization has enough forces for the unlocked degrees of freedom.
 
 Static Optimization writes activation, force, and controls files. Add
 `--write-states-for-muscle-analysis` if you also want the CLI to create the
-states trajectory needed for OpenSim Muscle Analysis.
+merged states trajectory for inspection or downstream tools that require a
+states file.
 
 With that flag, the CLI runs this workflow:
 
@@ -181,7 +183,12 @@ With that flag, the CLI runs this workflow:
 2. Run an OpenSim `StatesReporter` analysis on the same `.mot`.
 3. Merge the Static Optimization activation `.sto` into the matching
    `/forceset/<muscle>/activation` columns of the states file.
-4. Use the merged states file as the input states file for Muscle Analysis.
+
+For OpenSim MuscleAnalysis with coordinate filtering, add
+`--run-muscle-analysis`. That run intentionally uses the IK `.mot` as the
+`coordinates_file`, loads the generated Static Optimization controls XML, keeps
+`states_file` empty, enables solve-equilibrium for auxiliary states, and applies
+`--coordinate-filter-cutoff` to the coordinates.
 
 For the taxi-wave test, all inputs and outputs were kept in one folder:
 
@@ -195,11 +202,14 @@ output/taxi_wave_static_optimization_without_BRA_ANC_PT_TRIlat_TRImed_BICshort_c
   states_reporter_setup.xml
   states_reporter_StatesReporter_states.sto
   states_with_static_optimization_activations.sto
+  muscle_analysis_setup.xml
+  muscle_analysis_MuscleAnalysis_*.sto
 ```
 
-Use `states_with_static_optimization_activations.sto` for Muscle Analysis. The
-plain `states_reporter_StatesReporter_states.sto` contains the replayed model
-states, but its muscle activations are not the Static Optimization solution.
+Use `states_with_static_optimization_activations.sto` when you specifically need
+a states file with Static Optimization activations. For the filtered
+MuscleAnalysis workflow, use `--run-muscle-analysis` so the analysis is driven
+from the filtered motion coordinates.
 
 ## CLI Notes
 

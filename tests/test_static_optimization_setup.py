@@ -9,6 +9,7 @@ from pathlib import Path
 
 from safe_opensim.static_optimization_setup import (
     merge_static_optimization_activations_into_states,
+    write_muscle_analysis_setup,
     write_static_optimization_setup,
     write_states_reporter_setup,
 )
@@ -128,6 +129,29 @@ class StaticOptimizationSetupTests(unittest.TestCase):
             self.assertIn("StaticOptimization activation columns merged", text)
             self.assertIn("0\t0.25\t1.1\t0.75\t1.2", text)
             self.assertIn("0.1\t0.5\t1.3\t1\t1.4", text)
+
+    def test_writes_muscle_analysis_setup_from_motion_and_controls(self) -> None:
+        with workspace_temp_dir() as temp:
+            setup = write_muscle_analysis_setup(
+                temp / "muscle_analysis_setup.xml",
+                model_file=temp / "model.osim",
+                coordinates_file=temp / "motion.mot",
+                controls_file=temp / "static_optimization_controls.xml",
+                results_directory=temp / "results",
+                time_range=(0.0, 4.5),
+                filter_coordinates=True,
+                coordinate_filter_cutoff=4.0,
+            )
+
+            text = setup.read_text(encoding="utf-8")
+            self.assertIn("<AnalyzeTool name=\"muscle_analysis\">", text)
+            self.assertIn("<MuscleAnalysis name=\"MuscleAnalysis\">", text)
+            self.assertIn("<solve_for_equilibrium_for_auxiliary_states>true</solve_for_equilibrium_for_auxiliary_states>", text)
+            self.assertIn("<controls_file>", text)
+            self.assertIn("static_optimization_controls.xml</controls_file>", text)
+            self.assertIn("<states_file />", text)
+            self.assertIn("motion.mot</coordinates_file>", text)
+            self.assertIn("<lowpass_cutoff_frequency_for_coordinates>4</lowpass_cutoff_frequency_for_coordinates>", text)
 
 
 @contextmanager

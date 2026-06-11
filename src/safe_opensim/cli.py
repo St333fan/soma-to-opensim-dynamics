@@ -28,10 +28,13 @@ from .pipeline import prepare_rajagopal_ik
 from .seed_dataset import SeedDataset
 from .static_optimization_setup import (
     MERGED_STATES_FILENAME,
+    MUSCLE_ANALYSIS_SETUP_FILENAME,
     STATIC_OPTIMIZATION_ACTIVATION_FILENAME,
+    STATIC_OPTIMIZATION_CONTROLS_FILENAME,
     STATES_REPORTER_SETUP_FILENAME,
     STATES_REPORTER_STATES_FILENAME,
     merge_static_optimization_activations_into_states,
+    write_muscle_analysis_setup,
     write_static_optimization_setup,
     write_states_reporter_setup,
 )
@@ -145,6 +148,22 @@ def build_parser() -> argparse.ArgumentParser:
         "--write-states-for-muscle-analysis",
         action="store_true",
         help="after --run, write StatesReporter states and merge Static Optimization activations for Muscle Analysis",
+    )
+    static_opt.add_argument(
+        "--run-muscle-analysis",
+        action="store_true",
+        help="after --run, run MuscleAnalysis from the motion coordinates and generated controls",
+    )
+    static_opt.add_argument(
+        "--muscle-analysis-every",
+        type=int,
+        default=1,
+        help="MuscleAnalysis step interval: analyze every N step(s)",
+    )
+    static_opt.add_argument(
+        "--skip-muscle-analysis-equilibrium",
+        action="store_true",
+        help="disable solve equilibrium for auxiliary states in the MuscleAnalysis setup",
     )
     static_opt.add_argument("--run", action="store_true", help="run opensim-cmd run-tool after writing XML")
     static_opt.add_argument("--opensim-cmd")
@@ -439,6 +458,8 @@ def cmd_static_optimization(args: argparse.Namespace) -> int:
 
     if args.write_states_for_muscle_analysis and not args.run:
         raise ValueError("--write-states-for-muscle-analysis requires --run")
+    if args.run_muscle_analysis and not args.run:
+        raise ValueError("--run-muscle-analysis requires --run")
 
     if args.run:
         command = Path(args.opensim_cmd).resolve() if args.opensim_cmd else find_opensim_cmd()
@@ -477,6 +498,31 @@ def cmd_static_optimization(args: argparse.Namespace) -> int:
                 results_dir / MERGED_STATES_FILENAME,
             )
             print(f"wrote {merged_states_path}")
+
+        if args.run_muscle_analysis:
+            muscle_analysis_setup_path = write_muscle_analysis_setup(
+                results_dir / MUSCLE_ANALYSIS_SETUP_FILENAME,
+                model_file=Path(args.model).resolve(),
+                coordinates_file=Path(args.coordinates_file).resolve(),
+                controls_file=results_dir / STATIC_OPTIMIZATION_CONTROLS_FILENAME,
+                results_directory=results_dir,
+                time_range=(args.time_start, args.time_end),
+                filter_coordinates=args.filter_coordinates,
+                coordinate_filter_cutoff=args.coordinate_filter_cutoff,
+                external_loads_file=(
+                    Path(args.external_loads_file).resolve()
+                    if args.external_loads_file
+                    else None
+                ),
+                analyze_every=args.muscle_analysis_every,
+                solve_for_equilibrium=not args.skip_muscle_analysis_equilibrium,
+            )
+            print(f"wrote {muscle_analysis_setup_path}")
+            subprocess.run(
+                [str(command), f"--log={args.opensim_log_level}", "run-tool", str(muscle_analysis_setup_path)],
+                check=True,
+            )
+            print("ran MuscleAnalysis")
     return 0
 
 
