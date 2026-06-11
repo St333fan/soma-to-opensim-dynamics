@@ -33,6 +33,13 @@ From the repository root:
 python -m pip install -e .
 ```
 
+If the package is not installed, you can still run the scripts from the repo by
+setting `PYTHONPATH` to `src`:
+
+```powershell
+$env:PYTHONPATH = "src"
+```
+
 Check whether `opensim-cmd` can be found:
 
 ```powershell
@@ -46,6 +53,14 @@ On Windows this is often:
 C:\OpenSim 4.5\bin\opensim-cmd.exe
 ```
 
+This workflow does not require Docker. On Windows, a typical local setup is:
+
+```text
+Python:  C:\Users\<you>\miniconda3\python.exe
+OpenSim: C:\OpenSim 4.5\bin\opensim-cmd.exe
+Code:    this repository, loaded with PYTHONPATH=src if not installed
+```
+
 ## Run The Example
 
 This repo includes one small BVH example:
@@ -54,7 +69,8 @@ This repo includes one small BVH example:
 examples/data/nailing_wall_R_003__A282.bvh
 ```
 
-Run the improved ULB pipeline:
+Run the improved ULB pipeline to create both an OpenSim marker file (`.trc`) and
+an inverse-kinematics motion file (`.mot`):
 
 ```powershell
 python scripts/run_improved_ulb_example.py `
@@ -72,6 +88,21 @@ output/example_improved_ulb/
   bvh_rajagopal_ik_ik_marker_errors.sto
 ```
 
+The `.trc` contains marker trajectories. The `.mot` contains model coordinates
+from OpenSim Inverse Kinematics and is the file to load when you want to animate
+the model motion in OpenSim.
+
+If `python` is not available on `PATH`, use the full Miniconda Python path:
+
+```powershell
+$env:PYTHONPATH = "src"
+C:\Users\<you>\miniconda3\python.exe scripts\run_improved_ulb_example.py `
+  --input examples\data\nailing_wall_R_003__A282.bvh `
+  --model models\Adjusted_ULBmodel.osim `
+  --opensim-cmd "C:\OpenSim 4.5\bin\opensim-cmd.exe" `
+  --output-dir output\nailing_example
+```
+
 The same script can run any other SOMA-X BVH:
 
 ```powershell
@@ -80,6 +111,31 @@ python scripts/run_improved_ulb_example.py `
   --model "C:\path\to\Adjusted_ULBmodel.osim" `
   --output-dir "output/my_motion"
 ```
+
+For example, to run a taxi-wave BVH and generate a `.trc` plus `.mot`:
+
+```powershell
+$env:PYTHONPATH = "src"
+C:\Users\<you>\miniconda3\python.exe scripts\run_improved_ulb_example.py `
+  --input "C:\path\to\steet_taxi_wave_002__A424.bvh" `
+  --model models\Adjusted_ULBmodel.osim `
+  --opensim-cmd "C:\OpenSim 4.5\bin\opensim-cmd.exe" `
+  --output-dir output\taxi_wave
+```
+
+The output directory will contain files like:
+
+```text
+taxi_wave/
+  steet_taxi_wave_002__A424_Improved_ULBmodel.trc
+  steet_taxi_wave_002__A424_Improved_ULBmodel_IK_settings.xml
+  steet_taxi_wave_002__A424_Improved_ULBmodel_IK.mot
+  bvh_rajagopal_ik_ik_marker_errors.sto
+```
+
+If OpenSim reports that it cannot associate a motion with the current model,
+make sure the same `.osim` model used with `--model` is open in the GUI before
+loading the generated `_IK.mot`.
 
 ## CLI Notes
 
