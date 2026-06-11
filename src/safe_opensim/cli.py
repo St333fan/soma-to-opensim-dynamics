@@ -26,6 +26,7 @@ from .opensim_resources import (
 )
 from .pipeline import prepare_rajagopal_ik
 from .seed_dataset import SeedDataset
+from .static_optimization_setup import write_static_optimization_setup
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -90,6 +91,52 @@ def build_parser() -> argparse.ArgumentParser:
     ik_setup.add_argument("--time-start", type=float, default=0.0)
     ik_setup.add_argument("--time-end", type=float, required=True)
     ik_setup.set_defaults(func=cmd_make_ik_setup)
+
+    static_opt = subparsers.add_parser(
+        "static-optimization",
+        help="write and optionally run an OpenSim Static Optimization setup XML",
+    )
+    static_opt.add_argument("--model", required=True)
+    static_opt.add_argument("--coordinates-file", required=True, help="IK .mot or coordinates .sto")
+    static_opt.add_argument("--setup-output", required=True)
+    static_opt.add_argument("--results-dir", required=True)
+    static_opt.add_argument("--time-start", type=float, required=True)
+    static_opt.add_argument("--time-end", type=float, required=True)
+    static_opt.add_argument(
+        "--analyze-every",
+        type=int,
+        default=1,
+        help="StaticOptimization step interval: analyze every N step(s)",
+    )
+    static_opt.add_argument(
+        "--filter-coordinates",
+        action="store_true",
+        help="low-pass filter coordinates_file before Static Optimization",
+    )
+    static_opt.add_argument(
+        "--coordinate-filter-cutoff",
+        type=float,
+        default=4.0,
+        help="low-pass cutoff in Hz when --filter-coordinates is used",
+    )
+    static_opt.add_argument("--external-loads-file")
+    static_opt.add_argument("--activation-exponent", type=float, default=2.0)
+    static_opt.add_argument(
+        "--ignore-muscle-physiology",
+        action="store_true",
+        help="disable muscle force-length-velocity relation in Static Optimization",
+    )
+    static_opt.add_argument(
+        "--ignore-model-force-set",
+        action="store_true",
+        help="do not use the model's force set in Static Optimization",
+    )
+    static_opt.add_argument("--optimizer-convergence", type=float, default=1e-4)
+    static_opt.add_argument("--optimizer-max-iterations", type=int, default=100)
+    static_opt.add_argument("--run", action="store_true", help="run opensim-cmd run-tool after writing XML")
+    static_opt.add_argument("--opensim-cmd")
+    static_opt.add_argument("--opensim-log-level", default="error")
+    static_opt.set_defaults(func=cmd_static_optimization)
 
     rajagopal = subparsers.add_parser(
         "rajagopal-pipeline",
@@ -345,6 +392,44 @@ def cmd_make_ik_setup(args: argparse.Namespace) -> int:
         time_range=(args.time_start, args.time_end),
     )
     print(f"wrote {setup_path}")
+    return 0
+
+
+def cmd_static_optimization(args: argparse.Namespace) -> int:
+    setup_path = write_static_optimization_setup(
+        Path(args.setup_output).resolve(),
+        model_file=Path(args.model).resolve(),
+        coordinates_file=Path(args.coordinates_file).resolve(),
+        results_directory=Path(args.results_dir).resolve(),
+        time_range=(args.time_start, args.time_end),
+        analyze_every=args.analyze_every,
+        filter_coordinates=args.filter_coordinates,
+        coordinate_filter_cutoff=args.coordinate_filter_cutoff,
+        external_loads_file=(
+            Path(args.external_loads_file).resolve()
+            if args.external_loads_file
+            else None
+        ),
+        activation_exponent=args.activation_exponent,
+        use_muscle_physiology=not args.ignore_muscle_physiology,
+        use_model_force_set=not args.ignore_model_force_set,
+        optimizer_convergence_criterion=args.optimizer_convergence,
+        optimizer_max_iterations=args.optimizer_max_iterations,
+    )
+    print(f"wrote {setup_path}")
+    print(f"analyze every: {args.analyze_every} step(s)")
+    if args.filter_coordinates:
+        print(f"coordinate filter: {args.coordinate_filter_cutoff:g} Hz")
+    else:
+        print("coordinate filter: off")
+
+    if args.run:
+        command = Path(args.opensim_cmd).resolve() if args.opensim_cmd else find_opensim_cmd()
+        subprocess.run(
+            [str(command), f"--log={args.opensim_log_level}", "run-tool", str(setup_path)],
+            check=True,
+        )
+        print("ran Static Optimization")
     return 0
 
 

@@ -137,6 +137,70 @@ If OpenSim reports that it cannot associate a motion with the current model,
 make sure the same `.osim` model used with `--model` is open in the GUI before
 loading the generated `_IK.mot`.
 
+## Static Optimization
+
+After generating an IK `.mot`, you can write and optionally run a Static
+Optimization setup XML. The command below mirrors the important GUI settings:
+
+- `--analyze-every` is the "Analyze every N step(s)" field.
+- `--filter-coordinates` enables the "Filter coordinates" checkbox.
+- `--coordinate-filter-cutoff` is the cutoff frequency in Hz.
+
+Example:
+
+```powershell
+$env:PYTHONPATH = "src"
+C:\Users\<you>\miniconda3\python.exe -m safe_opensim static-optimization `
+  --model models\Adjusted_ULBmodel.osim `
+  --coordinates-file output\taxi_wave\steet_taxi_wave_002__A424_Improved_ULBmodel_IK.mot `
+  --setup-output output\taxi_wave_static_optimization\static_optimization_setup.xml `
+  --results-dir output\taxi_wave_static_optimization `
+  --time-start 0 `
+  --time-end 4.574817 `
+  --analyze-every 5 `
+  --filter-coordinates `
+  --coordinate-filter-cutoff 4 `
+  --opensim-cmd "C:\OpenSim 4.5\bin\opensim-cmd.exe" `
+  --run
+```
+
+If you only want to create the setup XML without running OpenSim, omit `--run`.
+For models with few muscles, lock unused coordinates or add reserve actuators so
+Static Optimization has enough forces for the unlocked degrees of freedom.
+
+### States For Muscle Analysis
+
+Static Optimization writes activation, force, and controls files, but it does
+not automatically save a states trajectory. If you want to run OpenSim Muscle
+Analysis after Static Optimization, create a states file for the same model,
+motion, time range, step interval, and coordinate filter.
+
+The tested workflow is:
+
+1. Run Static Optimization from the IK `.mot`.
+2. Run an OpenSim `StatesReporter` analysis on the same `.mot`.
+3. Merge the Static Optimization activation `.sto` into the matching
+   `/forceset/<muscle>/activation` columns of the states file.
+4. Use the merged states file as the input states file for Muscle Analysis.
+
+For the taxi-wave test, all inputs and outputs were kept in one folder:
+
+```text
+output/taxi_wave_static_optimization_without_BRA_ANC_PT_TRIlat_TRImed_BICshort_combined/
+  steet_taxi_wave_002__A424_Improved_ULBmodel_IK.mot
+  static_optimization_setup.xml
+  static_optimization_StaticOptimization_activation.sto
+  static_optimization_StaticOptimization_force.sto
+  static_optimization_StaticOptimization_controls.xml
+  states_reporter_setup.xml
+  states_reporter_StatesReporter_states.sto
+  states_with_static_optimization_activations.sto
+```
+
+Use `states_with_static_optimization_activations.sto` for Muscle Analysis. The
+plain `states_reporter_StatesReporter_states.sto` contains the replayed model
+states, but its muscle activations are not the Static Optimization solution.
+
 ## CLI Notes
 
 The package also exposes `seed-to-opensim` for lower-level conversion commands.
