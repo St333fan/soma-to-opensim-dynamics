@@ -26,7 +26,15 @@ from .opensim_resources import (
 )
 from .pipeline import prepare_rajagopal_ik
 from .seed_dataset import SeedDataset
-from .static_optimization_setup import write_static_optimization_setup
+from .static_optimization_setup import (
+    MERGED_STATES_FILENAME,
+    STATIC_OPTIMIZATION_ACTIVATION_FILENAME,
+    STATES_REPORTER_SETUP_FILENAME,
+    STATES_REPORTER_STATES_FILENAME,
+    merge_static_optimization_activations_into_states,
+    write_static_optimization_setup,
+    write_states_reporter_setup,
+)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -133,6 +141,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     static_opt.add_argument("--optimizer-convergence", type=float, default=1e-4)
     static_opt.add_argument("--optimizer-max-iterations", type=int, default=100)
+    static_opt.add_argument(
+        "--write-states-for-muscle-analysis",
+        action="store_true",
+        help="after --run, write StatesReporter states and merge Static Optimization activations for Muscle Analysis",
+    )
     static_opt.add_argument("--run", action="store_true", help="run opensim-cmd run-tool after writing XML")
     static_opt.add_argument("--opensim-cmd")
     static_opt.add_argument("--opensim-log-level", default="error")
@@ -396,11 +409,12 @@ def cmd_make_ik_setup(args: argparse.Namespace) -> int:
 
 
 def cmd_static_optimization(args: argparse.Namespace) -> int:
+    results_dir = Path(args.results_dir).resolve()
     setup_path = write_static_optimization_setup(
         Path(args.setup_output).resolve(),
         model_file=Path(args.model).resolve(),
         coordinates_file=Path(args.coordinates_file).resolve(),
-        results_directory=Path(args.results_dir).resolve(),
+        results_directory=results_dir,
         time_range=(args.time_start, args.time_end),
         analyze_every=args.analyze_every,
         filter_coordinates=args.filter_coordinates,
@@ -423,6 +437,9 @@ def cmd_static_optimization(args: argparse.Namespace) -> int:
     else:
         print("coordinate filter: off")
 
+    if args.write_states_for_muscle_analysis and not args.run:
+        raise ValueError("--write-states-for-muscle-analysis requires --run")
+
     if args.run:
         command = Path(args.opensim_cmd).resolve() if args.opensim_cmd else find_opensim_cmd()
         subprocess.run(
@@ -430,6 +447,36 @@ def cmd_static_optimization(args: argparse.Namespace) -> int:
             check=True,
         )
         print("ran Static Optimization")
+
+        if args.write_states_for_muscle_analysis:
+            states_setup_path = write_states_reporter_setup(
+                results_dir / STATES_REPORTER_SETUP_FILENAME,
+                model_file=Path(args.model).resolve(),
+                coordinates_file=Path(args.coordinates_file).resolve(),
+                results_directory=results_dir,
+                time_range=(args.time_start, args.time_end),
+                analyze_every=args.analyze_every,
+                filter_coordinates=args.filter_coordinates,
+                coordinate_filter_cutoff=args.coordinate_filter_cutoff,
+                external_loads_file=(
+                    Path(args.external_loads_file).resolve()
+                    if args.external_loads_file
+                    else None
+                ),
+            )
+            print(f"wrote {states_setup_path}")
+            subprocess.run(
+                [str(command), f"--log={args.opensim_log_level}", "run-tool", str(states_setup_path)],
+                check=True,
+            )
+            print("ran StatesReporter")
+
+            merged_states_path = merge_static_optimization_activations_into_states(
+                results_dir / STATES_REPORTER_STATES_FILENAME,
+                results_dir / STATIC_OPTIMIZATION_ACTIVATION_FILENAME,
+                results_dir / MERGED_STATES_FILENAME,
+            )
+            print(f"wrote {merged_states_path}")
     return 0
 
 

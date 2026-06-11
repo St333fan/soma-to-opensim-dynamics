@@ -7,7 +7,11 @@ from contextlib import contextmanager
 from collections.abc import Iterator
 from pathlib import Path
 
-from safe_opensim.static_optimization_setup import write_static_optimization_setup
+from safe_opensim.static_optimization_setup import (
+    merge_static_optimization_activations_into_states,
+    write_static_optimization_setup,
+    write_states_reporter_setup,
+)
 
 
 class StaticOptimizationSetupTests(unittest.TestCase):
@@ -56,6 +60,74 @@ class StaticOptimizationSetupTests(unittest.TestCase):
                     time_range=(0.0, 1.0),
                     analyze_every=0,
                 )
+
+    def test_writes_states_reporter_setup(self) -> None:
+        with workspace_temp_dir() as temp:
+            setup = write_states_reporter_setup(
+                temp / "states_reporter_setup.xml",
+                model_file=temp / "model.osim",
+                coordinates_file=temp / "motion.mot",
+                results_directory=temp / "results",
+                time_range=(0.0, 2.0),
+                analyze_every=3,
+                filter_coordinates=True,
+                coordinate_filter_cutoff=4.0,
+            )
+
+            text = setup.read_text(encoding="utf-8")
+            self.assertIn("<AnalyzeTool name=\"states_reporter\">", text)
+            self.assertIn("<StatesReporter name=\"StatesReporter\">", text)
+            self.assertIn("<step_interval>3</step_interval>", text)
+            self.assertIn("<lowpass_cutoff_frequency_for_coordinates>4</lowpass_cutoff_frequency_for_coordinates>", text)
+
+    def test_merges_static_optimization_activations_into_states(self) -> None:
+        with workspace_temp_dir() as temp:
+            states_file = temp / "states.sto"
+            activation_file = temp / "activation.sto"
+            output_file = temp / "merged_states.sto"
+            states_file.write_text(
+                "\n".join(
+                    [
+                        "ModelStates",
+                        "version=1",
+                        "nRows=2",
+                        "nColumns=5",
+                        "endheader",
+                        "time\t/forceset/DELT1/activation\t/forceset/DELT1/fiber_length\t/forceset/BRD/activation\t/forceset/BRD/fiber_length",
+                        "0\t0\t1.1\t0\t1.2",
+                        "0.1\t0\t1.3\t0\t1.4",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            activation_file.write_text(
+                "\n".join(
+                    [
+                        "Static Optimization",
+                        "version=1",
+                        "nRows=2",
+                        "nColumns=3",
+                        "endheader",
+                        "time\tDELT1\tBRD",
+                        "0\t0.25\t0.75",
+                        "0.1\t0.5\t1",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            merge_static_optimization_activations_into_states(
+                states_file,
+                activation_file,
+                output_file,
+            )
+
+            text = output_file.read_text(encoding="utf-8")
+            self.assertIn("StaticOptimization activation columns merged", text)
+            self.assertIn("0\t0.25\t1.1\t0.75\t1.2", text)
+            self.assertIn("0.1\t0.5\t1.3\t1\t1.4", text)
 
 
 @contextmanager

@@ -160,6 +160,7 @@ C:\Users\<you>\miniconda3\python.exe -m safe_opensim static-optimization `
   --analyze-every 5 `
   --filter-coordinates `
   --coordinate-filter-cutoff 4 `
+  --write-states-for-muscle-analysis `
   --opensim-cmd "C:\OpenSim 4.5\bin\opensim-cmd.exe" `
   --run
 ```
@@ -170,12 +171,11 @@ Static Optimization has enough forces for the unlocked degrees of freedom.
 
 ### States For Muscle Analysis
 
-Static Optimization writes activation, force, and controls files, but it does
-not automatically save a states trajectory. If you want to run OpenSim Muscle
-Analysis after Static Optimization, create a states file for the same model,
-motion, time range, step interval, and coordinate filter.
+Static Optimization writes activation, force, and controls files. Add
+`--write-states-for-muscle-analysis` if you also want the CLI to create the
+states trajectory needed for OpenSim Muscle Analysis.
 
-The tested workflow is:
+With that flag, the CLI runs this workflow:
 
 1. Run Static Optimization from the IK `.mot`.
 2. Run an OpenSim `StatesReporter` analysis on the same `.mot`.
