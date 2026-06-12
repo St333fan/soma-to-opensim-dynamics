@@ -1,6 +1,6 @@
 # soma-to-opensim-dynamics
 
-Convert SOMA-X/BONES-SEED `.bvh` motion files into OpenSim marker and motion files.
+Convert SOMA-X/BONES-SEED `.bvh` motion files into OpenSim marker (.trc), motion (.mot), muscle activations (tension/muscle-lengths) -> t, l, l_dot.
 
 The current workflow is:
 
@@ -9,11 +9,11 @@ The current workflow is:
 3. Write an OpenSim `.trc` marker trajectory.
 4. Write an OpenSim Inverse Kinematics setup XML.
 5. Run `opensim-cmd run-tool` to generate a model-coordinate `.mot`.
+6. Run Static Optimization and Muscle Analysis
 
-The longer-term goal is to continue from IK into dynamics and muscle-tendon force
-analysis so stiffness can be estimated from motion and force outputs.
+Hint: Not every motion will work, it depends on the osim model and marker set.
 
-## Requirements
+## Requirements Windows
 
 - Python 3.9+
 - OpenSim 4.5
